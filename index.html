@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saat Uygulamam</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        body {
+            background-color: #0f172a;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #saat {
+            font-size: 5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        #tarih {
+            font-size: 1.5rem;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="saat">00:00:00</div>
+    <div id="tarih">Yükleniyor...</div>
+
+    <script>
+        function zamaniGuncelle() {
+            const simdi = new Date();
+            
+            // Saat formatı
+            const saat = simdi.getHours().toString().padStart(2, '0');
+            const dakika = simdi.getMinutes().toString().padStart(2, '0');
+            const saniye = simdi.getSeconds().toString().padStart(2, '0');
+            document.getElementById('saat').textContent = `${saat}:${dakika}:${saniye}`;
+
+            // Tarih formatı
+            const secenekler = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('tarih').textContent = simdi.toLocaleDateString('tr-TR', secenekler);
+        }
+
+        setInterval(zamaniGuncelle, 1000);
+        zamaniGuncelle();
+
+        // PWA için Service Worker kaydı
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+</html>
