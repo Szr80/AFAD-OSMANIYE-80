@@ -3,97 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
     <link rel="manifest" href="manifest.json">
-    
-    <title>Yavru Saat PRO</title>
-
+    <title>VAKA OSMANİYE</title>
     <style>
-        body { 
-            background: #0f172a; color: white; font-family: 'Segoe UI', system-ui, sans-serif; 
-            text-align: center; height: 100vh; display: flex; flex-direction: column; 
-            justify-content: center; margin: 0; overflow: hidden;
-        }
-        #saat { 
-            font-size: 5.5rem; color: #38bdf8; font-weight: bold; 
-            text-shadow: 0 0 30px rgba(56, 189, 248, 0.4);
-        }
-        #tarih { font-size: 1.2rem; color: #94a3b8; margin-bottom: 25px; }
-        #mesajBox { 
-            margin: 0 25px; background: rgba(255, 255, 255, 0.05); 
-            padding: 35px; border-radius: 25px; border: 2px solid #38bdf8;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-        }
-        .etiket { font-size: 0.75rem; color: #38bdf8; letter-spacing: 2.5px; margin-bottom: 12px; opacity: 0.8; }
-        #gelenMesaj { font-size: 1.9rem; color: #facc15; font-weight: bold; line-height: 1.3; }
+        body { background: #0f172a; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; height: 100vh; display: flex; flex-direction: column; justify-content: center; margin: 0; overflow: hidden; }
+        #saat { font-size: 5rem; color: #38bdf8; font-weight: bold; }
+        #birimAd { font-size: 1.2rem; color: #94a3b8; margin-top: -10px; margin-bottom: 20px; letter-spacing: 1px; }
+        #mesajBox { margin: 0 25px; padding: 30px; border-radius: 20px; background: rgba(255, 255, 255, 0.05); border: 2px solid #f97316; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .etiket { font-size: 0.8rem; color: #f97316; letter-spacing: 2px; margin-bottom: 12px; font-weight: bold; }
+        #gelenMesaj { font-size: 1.8rem; color: #ffffff; font-weight: bold; }
+        #tarih { font-size: 0.9rem; color: #64748b; margin-top: 20px; }
     </style>
 </head>
-<body onclick="sistemiAktifEt()">
+<body onclick="sistemiBaslat()">
 
     <div id="saat">00:00:00</div>
-    <div id="tarih">Yükleniyor...</div>
+    <div id="birimAd">OSMANİYE AFAD EKİP UÇ BİRİM</div>
 
     <div id="mesajBox">
-        <div class="etiket">SİSTEM MESAJI</div>
-        <div id="gelenMesaj">Bağlantı Kuruluyor...</div>
+        <div class="etiket">VAKA BİLGİSİ</div>
+        <div id="gelenMesaj">KOMUTA BEKLENİYOR...</div>
     </div>
+    
+    <div id="tarih">...</div>
 
-    <audio id="bildirimSesi" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3" preload="auto"></audio>
+    <audio id="vakaSesi" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3" preload="auto"></audio>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, onValue, goOnline } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        const firebaseConfig = {
-            databaseURL: "https://ana-uygulama-f22cb-default-rtdb.asia-southeast1.firebasedatabase.app/"
-        };
-
+        const firebaseConfig = { databaseURL: "https://ana-uygulama-f22cb-default-rtdb.asia-southeast1.firebasedatabase.app/" };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const ses = document.getElementById('bildirimSesi');
+        const ses = document.getElementById('vakaSesi');
 
-        // 1. Arka Plan Bekçisini (Service Worker) Kaydet
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log("Arka plan bekçisi devrede."))
-            .catch(err => console.error("Hata:", err));
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
+
+        function guncelle() {
+            const d = new Date();
+            document.getElementById('saat').innerText = d.toLocaleTimeString('tr-TR');
+            document.getElementById('tarih').innerText = d.toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric', weekday:'long' });
         }
+        setInterval(guncelle, 1000); guncelle();
 
-        // 2. Saat ve Tarih
-        function saatGuncelle() {
-            const simdi = new Date();
-            document.getElementById('saat').innerText = simdi.toLocaleTimeString('tr-TR');
-            document.getElementById('tarih').innerText = simdi.toLocaleDateString('tr-TR', { 
-                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-            });
-        }
-        setInterval(saatGuncelle, 1000);
-        saatGuncelle();
-
-        // 3. Kullanıcı Dokunuşunda İzinleri Al
-        window.sistemiAktifEt = () => {
-            if ("Notification" in window) {
-                Notification.requestPermission().then(permission => {
-                    if(permission === "granted") console.log("Bildirim izni alındı.");
-                });
-            }
-            // Sesi tarayıcıya tanıt
+        window.sistemiBaslat = () => {
+            if ("Notification" in window) { Notification.requestPermission(); }
             ses.play().then(() => { ses.pause(); ses.currentTime = 0; });
         };
 
-        // 4. Ekrana Dönüşte Bağlantıyı Zorla (Mobil için)
-        document.addEventListener("visibilitychange", () => {
-            if (document.visibilityState === "visible") goOnline(db);
-        });
-
-        // 5. Firebase Veri Dinleme (Görsel Güncelleme)
-        const mesajRef = ref(db, 'ortakKanal');
-        onValue(mesajRef, (snapshot) => {
+        let ilkAtla = true;
+        onValue(ref(db, 'ortakKanal'), (snapshot) => {
             const data = snapshot.val();
             if (data && data.metin) {
                 document.getElementById('gelenMesaj').innerText = data.metin;
-                
-                // Uyg
+                if (!ilkAtla) {
+                    ses.play().catch(() => {});
+                    if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+                    
+                    if (Notification.permission === "granted") {
+                        navigator.serviceWorker.ready.then(reg => {
+                            reg.showNotification('OSMANİYE AFAD', {
+                                body: data.metin,
+                                icon: 'https://upload.wikimedia.org/wikipedia/tr/e/ee/Afet_ve_Acil_Durum_Y%C3%B6netimi_Ba%C5%9Fanl%C4%B1%C4%9F%C4%B1_logosu.png',
+                                tag: 'vaka-uyari',
+                                renotify: true
+                            });
+                        });
+                    }
+                }
+                ilkAtla = false;
+            }
+        });
+    </script>
+</body>
+</html>
