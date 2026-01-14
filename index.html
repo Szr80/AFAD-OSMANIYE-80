@@ -3,81 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="manifest" href="manifest.json">
+    
     <title>Yavru Saat PRO</title>
+
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; text-align: center; height: 100vh; display: flex; flex-direction: column; justify-content: center; margin: 0; overflow: hidden; }
-        #saat { font-size: 5.5rem; color: #38bdf8; font-weight: bold; }
-        #mesajBox { margin: 0 25px; padding: 30px; border-radius: 20px; background: rgba(255,255,255,0.05); border: 2px solid #38bdf8; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        #gelenMesaj { font-size: 1.8rem; color: #facc15; font-weight: bold; }
+        body { 
+            background: #0f172a; color: white; font-family: 'Segoe UI', system-ui, sans-serif; 
+            text-align: center; height: 100vh; display: flex; flex-direction: column; 
+            justify-content: center; margin: 0; overflow: hidden;
+        }
+        #saat { 
+            font-size: 5.5rem; color: #38bdf8; font-weight: bold; 
+            text-shadow: 0 0 30px rgba(56, 189, 248, 0.4);
+        }
+        #tarih { font-size: 1.2rem; color: #94a3b8; margin-bottom: 25px; }
+        #mesajBox { 
+            margin: 0 25px; background: rgba(255, 255, 255, 0.05); 
+            padding: 35px; border-radius: 25px; border: 2px solid #38bdf8;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        }
+        .etiket { font-size: 0.75rem; color: #38bdf8; letter-spacing: 2.5px; margin-bottom: 12px; opacity: 0.8; }
+        #gelenMesaj { font-size: 1.9rem; color: #facc15; font-weight: bold; line-height: 1.3; }
     </style>
 </head>
-<body onclick="izniEtkinlestir()">
+<body onclick="sistemiAktifEt()">
 
     <div id="saat">00:00:00</div>
+    <div id="tarih">Yükleniyor...</div>
+
     <div id="mesajBox">
-        <div style="font-size: 0.7rem; color: #38bdf8; letter-spacing: 2px; margin-bottom: 10px;">YENİ MESAJ</div>
-        <div id="gelenMesaj">Bağlanıyor...</div>
+        <div class="etiket">SİSTEM MESAJI</div>
+        <div id="gelenMesaj">Bağlantı Kuruluyor...</div>
     </div>
 
     <audio id="bildirimSesi" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3" preload="auto"></audio>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, onValue, goOnline } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        const firebaseConfig = { databaseURL: "https://ana-uygulama-f22cb-default-rtdb.asia-southeast1.firebasedatabase.app/" };
+        const firebaseConfig = {
+            databaseURL: "https://ana-uygulama-f22cb-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         const ses = document.getElementById('bildirimSesi');
 
-        // 1. Service Worker Kaydı (Üst Bildirim İçin ŞART)
+        // 1. Arka Plan Bekçisini (Service Worker) Kaydet
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
+            navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log("Arka plan bekçisi devrede."))
+            .catch(err => console.error("Hata:", err));
         }
 
-        // 2. Saat
-        setInterval(() => { document.getElementById('saat').innerText = new Date().toLocaleTimeString('tr-TR'); }, 1000);
+        // 2. Saat ve Tarih
+        function saatGuncelle() {
+            const simdi = new Date();
+            document.getElementById('saat').innerText = simdi.toLocaleTimeString('tr-TR');
+            document.getElementById('tarih').innerText = simdi.toLocaleDateString('tr-TR', { 
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+            });
+        }
+        setInterval(saatGuncelle, 1000);
+        saatGuncelle();
 
-        // 3. İzinleri Al (Ekrana ilk dokunuşta çalışır)
-        window.izniEtkinlestir = () => {
-            if ("Notification" in window) { Notification.requestPermission(); }
+        // 3. Kullanıcı Dokunuşunda İzinleri Al
+        window.sistemiAktifEt = () => {
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    if(permission === "granted") console.log("Bildirim izni alındı.");
+                });
+            }
+            // Sesi tarayıcıya tanıt
             ses.play().then(() => { ses.pause(); ses.currentTime = 0; });
         };
 
-        // 4. Firebase Mesaj Dinleme + Titreşim + Üst Bildirim
-        let ilkMesajAtlandi = false;
-        onValue(ref(db, 'ortakKanal'), (snapshot) => {
+        // 4. Ekrana Dönüşte Bağlantıyı Zorla (Mobil için)
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") goOnline(db);
+        });
+
+        // 5. Firebase Veri Dinleme (Görsel Güncelleme)
+        const mesajRef = ref(db, 'ortakKanal');
+        onValue(mesajRef, (snapshot) => {
             const data = snapshot.val();
             if (data && data.metin) {
                 document.getElementById('gelenMesaj').innerText = data.metin;
-
-                if (ilkMesajAtlandi) {
-                    // TİTREŞİM (Sert ve Kısa 3 vuruş)
-                    if (navigator.vibrate) {
-                        navigator.vibrate([300, 100, 300, 100, 300]);
-                    }
-
-                    // SES
-                    ses.play().catch(() => {});
-
-                    // ÜST BİLDİRİM (BANNER)
-                    if (Notification.permission === "granted") {
-                        navigator.serviceWorker.ready.then(reg => {
-                            reg.showNotification("MESAJ GELDİ!", {
-                                body: data.metin,
-                                icon: "https://cdn-icons-png.flaticon.com/512/3103/3103611.png",
-                                vibrate: [300, 100, 300],
-                                tag: 'mesaj-bildirim',
-                                renotify: true
-                            });
-                        });
-                    }
-                }
-                ilkMesajAtlandi = true;
-            }
-        });
-    </script>
-</body>
-</html>
+                
+                // Uyg
