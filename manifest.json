@@ -1,15 +1,15 @@
 {
-  "name": "Dijital Saat Uygulaması",
-  "short_name": "Saat",
-  "start_url": "index.html",
-  "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "short_name": "YavruSaat",
+  "name": "Yavru Uygulama Saat",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2088/2088617.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "https://cdn-icons-png.flaticon.com/512/3103/3103611.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
-  ]
+  ],
+  "start_url": "index.html",
+  "background_color": "#0f172a",
+  "display": "standalone",
+  "theme_color": "#38bdf8"
 }
