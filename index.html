@@ -3,54 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="manifest" href="manifest.json">
+    
     <title>Yavru Saat</title>
+
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; text-align: center; height: 100vh; display: flex; flex-direction: column; justify-content: center; margin: 0; overflow: hidden; }
-        #saat { font-size: 5rem; color: #38bdf8; font-weight: bold; }
-        #mesajBox { margin: 20px; padding: 25px; border-radius: 20px; background: rgba(255,255,255,0.05); border: 2px solid #38bdf8; }
-        #gelenMesaj { font-size: 1.8rem; color: #facc15; }
+        body { 
+            background: #0f172a; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            text-align: center; height: 100vh; display: flex; flex-direction: column; 
+            justify-content: center; margin: 0; overflow: hidden; touch-action: manipulation;
+        }
+        #saat { 
+            font-size: 5rem; color: #38bdf8; font-weight: bold; 
+            margin-bottom: 5px;
+        }
+        #tarih { font-size: 1.1rem; color: #94a3b8; margin-bottom: 30px; }
+        #mesajBox { 
+            margin: 0 25px; background: rgba(255, 255, 255, 0.05); 
+            padding: 30px; border-radius: 20px; border: 2px solid #38bdf8;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .etiket { font-size: 0.7rem; color: #38bdf8; letter-spacing: 2px; margin-bottom: 10px; text-transform: uppercase; }
+        #gelenMesaj { font-size: 1.6rem; color: #facc15; font-weight: 500; word-wrap: break-word; }
     </style>
 </head>
-<body onclick="sesiAc()">
+<body onclick="sesiAktifEt()">
 
     <div id="saat">00:00:00</div>
+    <div id="tarih">...</div>
+
     <div id="mesajBox">
-        <div id="gelenMesaj">Bağlantı bekleniyor...</div>
+        <div class="etiket">Mesaj Paneli</div>
+        <div id="gelenMesaj">Bağlanıyor...</div>
     </div>
 
-    <audio id="bildirimSesi" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"></audio>
+    <audio id="bildirimSesi" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3" preload="auto"></audio>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, onValue, goOnline, goOffline } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        const firebaseConfig = { databaseURL: "https://ana-uygulama-f22cb-default-rtdb.asia-southeast1.firebasedatabase.app/" };
+        // 1. Firebase Yapılandırması
+        const firebaseConfig = {
+            databaseURL: "https://ana-uygulama-f22cb-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         const ses = document.getElementById('bildirimSesi');
 
-        // Saat
-        setInterval(() => { document.getElementById('saat').innerText = new Date().toLocaleTimeString('tr-TR'); }, 1000);
+        // 2. Service Worker Kaydı
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log("SW hatası:", err));
+        }
 
-        // Ses izni
-        window.sesiAc = () => {
+        // 3. Saat Fonksiyonu
+        function saatiGuncelle() {
+            const simdi = new Date();
+            document.getElementById('saat').innerText = simdi.toLocaleTimeString('tr-TR');
+            document.getElementById('tarih').innerText = simdi.toLocaleDateString('tr-TR', { 
+                weekday: 'long', day: 'numeric', month: 'long' 
+            });
+        }
+        setInterval(saatiGuncelle, 1000);
+        saatiGuncelle();
+
+        // 4. Mobil Bağlantı Koruyucu (Ekran açıldığında tekrar bağlanır)
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+                goOnline(db);
+                console.log("Bağlantı tazelendi");
+            }
+        });
+
+        // 5. Ses ve Bildirim İzni
+        window.sesiAktifEt = () => {
+            if ("Notification" in window) { Notification.requestPermission(); }
             ses.play().then(() => { ses.pause(); ses.currentTime = 0; });
         };
 
-        // Firebase Dinleme
-        let ilkAtla = true;
-        onValue(ref(db, 'ortakKanal'), (snapshot) => {
+        // 6. Veri Dinleme
+        let ilkVeri = true;
+        const mesajRef = ref(db, 'ortakKanal');
+
+        onValue(mesajRef, (snapshot) => {
             const data = snapshot.val();
-            if (data) {
+            if (data && data.metin) {
                 document.getElementById('gelenMesaj').innerText = data.metin;
-                if (!ilkAtla) {
-                    ses.play();
-                    if (navigator.vibrate) navigator.vibrate(500);
+
+                if (!ilkVeri) {
+                    // Ses Çal
+                    ses.play().catch(e => console.log("Etkileşim gerekli"));
+                    
+                    // Titret
+                    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+
+                    // Bildirim (Uygulama arkadaysa)
+                    if (document.visibilityState !== 'visible' && Notification.permission === "granted") {
+                        new Notification("Yeni Mesaj!", { body: data.metin });
+                    }
                 }
-                ilkAtla = false;
+                ilkVeri = false;
             }
         });
     </script>
