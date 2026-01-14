@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sezer Çalt - Saat</title>
+    <title>Sezer Çalt - Akıllı Saat</title>
     <link rel="manifest" href="manifest.json">
     <style>
         body {
@@ -15,26 +15,21 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
+            text-align: center;
         }
-        #saat {
-            font-size: 5rem;
+        #saat { font-size: 5rem; font-weight: bold; margin-bottom: 5px; text-shadow: 0 0 20px rgba(56, 189, 248, 0.5); }
+        #tarih { font-size: 1.2rem; color: #94a3b8; margin-bottom: 20px; }
+        #isim { font-size: 1.5rem; color: #38bdf8; letter-spacing: 2px; border-top: 1px solid #334155; padding-top: 10px; }
+        button {
+            margin-top: 30px;
+            padding: 10px 20px;
+            background-color: #38bdf8;
+            border: none;
+            border-radius: 5px;
+            color: #0f172a;
             font-weight: bold;
-            margin-bottom: 5px;
-            text-shadow: 0 0 15px rgba(255,255,255,0.3);
-        }
-        #tarih {
-            font-size: 1.2rem;
-            color: #94a3b8;
-            margin-bottom: 20px;
-        }
-        #isim {
-            font-size: 1.5rem;
-            font-weight: 300;
-            color: #38bdf8; /* Açık mavi tonu */
-            letter-spacing: 2px;
-            border-top: 1px solid #334155;
-            padding-top: 10px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -43,26 +38,45 @@
     <div id="saat">00:00:00</div>
     <div id="tarih">Yükleniyor...</div>
     <div id="isim">SEZER ÇALT</div>
+    
+    <button onclick="bildirimIzniniAl()">Bildirimleri Aktif Et</button>
 
-    <script>
+    <script type="module">
+        // Firebase Modülleri
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
+
+        // Firebase Ayarların (Burayı Kendi Bilgilerinle Doldur)
+        const firebaseConfig = {
+            apiKey: "AIzaSy...",
+            authDomain: "projen.firebaseapp.com",
+            projectId: "projen-id",
+            storageBucket: "projen.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:12345:web:abcde"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const messaging = getMessaging(app);
+
+        // Bildirim İzni Alma Fonksiyonu
+        window.bildirimIzniniAl = function() {
+            Notification.requestPermission().then((permission) => {
+                if (permission === 'granted') {
+                    getToken(messaging, { vapidKey: 'BURAYA_FIREBASE_VAPID_KEY_GELECEK' })
+                    .then((token) => {
+                        console.log("Token Alındı: ", token);
+                        alert("Bildirimler aktif edildi! Artık mesaj alabilirsin.");
+                    });
+                } else {
+                    alert("Bildirim izni reddedildi.");
+                }
+            });
+        };
+
+        // Saat Güncelleme Mantığı
         function zamaniGuncelle() {
             const simdi = new Date();
-            
-            const saat = simdi.getHours().toString().padStart(2, '0');
-            const dakika = simdi.getMinutes().toString().padStart(2, '0');
-            const saniye = simdi.getSeconds().toString().padStart(2, '0');
-            document.getElementById('saat').textContent = `${saat}:${dakika}:${saniye}`;
-
+            document.getElementById('saat').textContent = simdi.toLocaleTimeString('tr-TR');
             const secenekler = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             document.getElementById('tarih').textContent = simdi.toLocaleDateString('tr-TR', secenekler);
-        }
-
-        setInterval(zamaniGuncelle, 1000);
-        zamaniGuncelle();
-
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
-        }
-    </script>
-</body>
-</html>
